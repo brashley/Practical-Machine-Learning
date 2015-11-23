@@ -42,9 +42,11 @@ training <- pml.train[inTrain,]; testing <- pml.train[-inTrain,]
 training[, 'classe'] <- as.factor(training[, 'classe'])
 testing[, 'classe'] <- as.factor(testing[, 'classe'])
 
+# calculate feature importance weights
 weights <- random.forest.importance(classe~., training, importance.type = 1)
-print(weights)
 hist(weights$attr_importance)
+head(weights)
+
 
 # select top 15 factors bassed on rf importance
 subset <- cutoff.k(weights, 15)
@@ -54,7 +56,8 @@ featurePlot(training[c("yaw_belt","magnet_dumbbell_z")],training$classe,
             scales = list(x = list(relation="free"),
                           y = list(relation="free")),
             adjust = 1.5,
-            pch = "|")
+            pch = "|",
+            auto.key = list(columns = 5))
 
 
 # model for training
@@ -79,9 +82,8 @@ head(getTree(rfFit2$finalModel,k=2))
 # build prediction off of testing part of data
 pred <- predict(rfFit2,testing); testing$predRight <- pred==testing$classe
 # look at table of actual v.s. predicted
-table(pred,testing$classe)
 
-confusionMatrix(pred,testing$classe)
+test <- confusionMatrix(pred,testing$classe)
 
 # output files for 20 test data measures provided
 answers = rep("A", 20)
