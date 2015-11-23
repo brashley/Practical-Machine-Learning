@@ -1,0 +1,135 @@
+---
+title: "Qualitative Activity Recognition"
+subtitle: "Predicting the Quality of Weight Lifting Exercises"
+author: "Richard Ashley"
+date: "Monday, November 22, 2015"
+output: html_document
+---
+
+
+##Summary
+This project is for the Coaursera - Practical Machine Learning class and focusses on building a model to predict the quality of exerzise for a Dumbell Bicep Curl. Using data collected from Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project, a Random Forrest learning model was created with 10 fold cross validation. This model produced an accuracy of 99% with the hold out set from the training data and correctly identified 20 out of 20 for the test data set.   
+
+##Experiment and Data
+The Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project used six young healthy participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions or execize quality types: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Inertial measurement units (IMU), which provide three-axes acceleration, gyroscope and magnetometer data, were mounted in the users’ glove, armband, lumbar belt and dumbbell.  All IMU data was recorded and loged for each participant and during all different exercize types. The excersize quality type was loged in the column `classe`. 
+
+##Data Preperation
+The [data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) provided for this project needed to be slightly modified to focus on the key factors that had data. The data contains summary statistics for each new time window for statistics like max, min kurtosis, and skewness.  These valuse only occure at new window boundaries and since our test data does not contain those they will be removed from this data set by removing rows with `new_window == 'no'`.
+```{r,results='hide',cache=TRUE}
+# if the training data does not exist download it
+if (!file.exists("pml-train.csv")) {
+    fileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    download.file(fileUrl, destfile="pml-train.csv", mode="wb")
+}
+# download test cases
+if (!file.exists("pml-test.csv")) {
+    fileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    download.file(fileUrl, destfile="pml-test.csv", mode="wb")
+}
+# Read the files into memory
+pml.train <- suppressWarnings(read.csv("pml-train.csv",stringsAsFactors=FALSE))
+pml.test <- suppressWarnings(read.csv("pml-test.csv",stringsAsFactors=FALSE))
+
+# remove the new window entries that contain the summary statistics
+pml.train <- pml.train[pml.train$new_window == 'no',]
+
+```
+We will next remove all feature columns that have no intrisic value as a result of having no variation or no values in those columns. To accomplish that we will use the `nearZeroVar` function to identify what columns should be removed.  In addition, the first eight columns in the data set contain information about the subject, time, window, etc that are not valuable for this learning activity. 
+```{r,cache=TRUE}
+# identify columns that have no variztion 
+nzv <- nearZeroVar(pml.train,saveMetrics=TRUE)
+
+# remove the near zero columns
+pml.train <- pml.train[,!nzv$nzv]
+pml.train <- pml.train[c(-1:-8)]
+paste0('Training data size of: ',ncol(pml.train),' x ',nrow(pml.train))
+```
+##Building the Model
+Before building the model, we need to split our training data into a *training* and a *test* data set so that we can validate the performance of our model at the end of the traiing excersize.  We will use a 70%-30% split to accomplish this. The responce variable also needs to be converted to a factor.
+
+```{r,warning=FALSE,results='hide',cache=TRUE,message=FALSE,warning=FALSE}
+# loading libraries
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(FSelector)
+library(xtable)
+```
+
+```{r,cache=TRUE}
+inTrain <- createDataPartition(y=pml.train$classe,
+                               p=0.7, list=FALSE)
+training <- pml.train[inTrain,]
+testing <- pml.train[-inTrain,]
+
+# convert responce to factore
+training[, 'classe'] <- as.factor(training[, 'classe'])
+testing[, 'classe'] <- as.factor(testing[, 'classe'])
+```
+
+Next, we sellect only the features that have the biggest impact on the model. This is accomplished by determining the feature importance using the `random.forest.importance` function from the `FSelector` library and chosing the top features only. In this case we are only chosing the top 15 features which is approximatly the right 4 bars on the subsequint histogram of `weights` for the attribute importance.
+
+```{r,cache=TRUE,results='hold'}
+# calculate feature importance weights
+weights <- random.forest.importance(classe~., training, importance.type = 1)
+hist(weights$attr_importance)
+```
+
+```{r,cache=TRUE,results='hold',comment=NA}
+# select top 15 factors bassed on rf importance
+subset <- cutoff.k(weights, 15)
+featurePlot(training[c("yaw_belt","magnet_dumbbell_z")],training$classe, 
+            "density",
+            scales = list(x = list(relation="free"),
+                          y = list(relation="free")),
+            adjust = 1.5,
+            pch = "|",
+            auto.key = list(columns = 5))
+
+# model for training
+model <- as.simple.formula(subset, "classe")
+
+model
+
+```
+
+With the primary features idendified, we can now train our model.  Since this is an attribute responce with 5 levels, we will be using a Random Forrest tree ansomble to build a clasification model using the selected features from above. To prevent over fitting, we will use a 10 fold Cross Validation stratagy to chose the best classification model. 
+
+```{r,cache=TRUE,comment=NA}
+set.seed(825)
+# set up cross validation using training control - 10-fold CV
+fitControl <- trainControl(
+    method = "cv",number = 10)
+
+# if modle already exists, run it and save, otherwise just load it
+
+rfFit <- train(model, data = training,
+        method = "rf", prox=TRUE, trControl = fitControl,
+        verbose = FALSE)
+
+rfFit
+```
+
+To evaluate the quality of this model, we will predict the responce on the testing hold out set from above and then build a confusion matrix and look that the accuracy of the models predictions.
+
+
+```{r,cache=TRUE,message=FALSE,warning=FALSE,comment=NA}
+pred <- predict(rfFit,testing); testing$predRight <- pred==testing$classe
+# look at table of actual v.s. predicted
+
+confMat <- confusionMatrix(pred,testing$classe)
+confMat
+```
+
+
+The overall accuracy of the prediction on this hold-out set was `r confMat$overall[1]` and Kappa was `r confMat$overall[2]`.  This is very good accuracy given that I only used 15 features and did not take any of the time series data into account.
+
+***
+
+####References
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. **Qualitative Activity Recognition of Weight Lifting Exercises.** *Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13)* . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3sKVwnGFq
