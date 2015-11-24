@@ -2,7 +2,7 @@
 title: "Qualitative Activity Recognition"
 subtitle: "Predicting the Quality of Weight Lifting Exercises"
 author: "Richard Ashley"
-date: "Monday, November 22, 2015"
+date: "Sunday, November 22, 2015"
 output: html_document
 ---
 
@@ -128,6 +128,25 @@ pred <- predict(rfFit,testing); testing$predRight <- pred==testing$classe
 
 confMat <- confusionMatrix(pred,testing$classe)
 confMat
+```
+
+```{r,cache=TRUE,message=FALSE,warning=FALSE,comment=NA, echo=FALSE}
+confusion <- data.frame(confMat$table)
+names(confusion) = c("Actual","Predicted","Freq")
+tile <- ggplot() +
+    geom_tile(aes(x=Actual, y=Predicted,fill=Freq),data=confusion, color="black",size=0.1) +
+    labs(title="Confusion Matrix", x="Actual",y="Predicted")
+tile = tile + 
+    geom_text(aes(x=Actual,y=Predicted, label=Freq),data=confusion, size=3, colour="black") +
+    scale_fill_gradient(low="grey",high="red")
+
+# lastly we draw diagonal tiles. We use alpha = 0 so as not to hide previous layers but use size=0.3 to highlight border
+tile = tile + 
+    geom_tile(aes(x=Actual,y=Predicted),data=subset(confusion, as.character(Actual)==as.character(Predicted)), color="black",
+              size=0.3, fill="black", alpha=0) 
+
+#render
+tile
 ```
 
 ##Conclusion
