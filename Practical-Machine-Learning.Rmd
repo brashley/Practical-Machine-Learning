@@ -57,7 +57,7 @@ library(dplyr)
 library(ggplot2)
 library(caret)
 library(FSelector)
-library(xtable)
+library(formula.tools)
 ```
 
 ```{r,cache=TRUE}
@@ -92,15 +92,15 @@ featurePlot(training[c("yaw_belt","magnet_dumbbell_z")],training$classe,
             auto.key = list(columns = 5))
 ```
 
-The final model that will be used for training is then as folllows:
+The final formula that will be used for training is then as folllows:
 
 ```{r,cache=TRUE,results='hold',comment=NA}
 # select top 15 factors bassed on rf importance
 subset <- cutoff.k(weights, 15)
 
-# model for training
-model <- as.simple.formula(subset, "classe")
-model
+# formula for training
+formula <- as.simple.formula(subset, "classe")
+as.character(formula)
 
 ```
 
@@ -109,14 +109,15 @@ With the primary features identified, we can now train our model.  Since this is
 ```{r,cache=TRUE,comment=NA}
 set.seed(825)
 # set up cross validation using training control - 10-fold CV
-fitControl <- trainControl(
-    method = "cv",number = 10)
+fitControl <- trainControl(method = "cv",number = 10)
 
-# if modle already exists, run it and save, otherwise just load it
-
-rfFit <- train(model, data = training,
-        method = "rf", prox=TRUE, trControl = fitControl,
-        verbose = FALSE)
+# train the modle using formula from above 
+rfFit <- train(x = training[subset], 
+               y = training$classe,
+               method = "rf", 
+               prox = TRUE, 
+               trControl = fitControl,
+               verbose = FALSE)
 
 rfFit
 ```
