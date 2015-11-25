@@ -135,11 +135,17 @@ confMat
 ```{r,cache=TRUE,message=FALSE,warning=FALSE,comment=NA, echo=FALSE}
 confusion <- data.frame(confMat$table)
 names(confusion) = c("Actual","Predicted","Freq")
+act_tot <- confusion %>% group_by(Actual) %>% summarise(tot=sum(Freq))
+confusion <- merge(confusion,act_tot)
+confusion$Percent <- confusion$Freq/confusion$tot*100
+#render plot
+# we use three different layers
+# first we draw tiles and fill color based on percentage of test cases
 tile <- ggplot() +
-    geom_tile(aes(x=Actual, y=Predicted,fill=Freq),data=confusion, color="black",size=0.1) +
+    geom_tile(aes(x=Actual, y=Predicted,fill=Percent),data=confusion, color="black",size=0.1) +
     labs(title="Confusion Matrix", x="Actual",y="Predicted")
 tile = tile + 
-    geom_text(aes(x=Actual,y=Predicted, label=Freq),data=confusion, size=3, colour="black") +
+    geom_text(aes(x=Actual,y=Predicted, label=sprintf("%.1f", Percent)),data=confusion, size=3, colour="black") +
     scale_fill_gradient(low="grey",high="red")
 
 # lastly we draw diagonal tiles. We use alpha = 0 so as not to hide previous layers but use size=0.3 to highlight border
