@@ -8,15 +8,15 @@ output: html_document
 
 
 ##Summary
-This project is for the Coursera - Practical Machine Learning class and focusses on building a model to predict the quality of exercise for a Dumbbell Bicep Curl. Using data collected from Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project, a Random Forrest learning model was created with 10 fold cross validation. This model produced an accuracy of 99% with the hold out set from the training data and correctly identified 20 out of 20 for the test data set.   
+This project is for the Coursera - Practical Machine Learning class and focusses on building a model to predict the quality of exercise for a Dumbbell Bicep Curl. Using data collected from Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project, a Random Forrest learning model was created with 10 fold cross validation. This model produced an accuracy of 99% with the hold-out set from the training data and correctly identified 20 out of 20 for the test data set.   
 
 ##Experiment and Data
-The Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project used six young healthy participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions or execize quality types: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+The Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#ixzz3sKQFQCKD) project used six young healthy participants who were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions or execize quality types: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
 
-Inertial measurement units (IMU), which provide three-axes acceleration, gyroscope and magnetometer data, were mounted in the users’ glove, armband, lumbar belt and dumbbell.  All IMU data was recorded and logged for each participant and during all different exercise types. The exercise quality type was logged in the column `classe`. 
+Inertial measurement units (IMU), which provide three-axes acceleration, gyroscope and magnetometer data, were mounted in the users’ glove, armband, lumbar belt and dumbbell.  All IMU data was recorded and logged for each participant and during all different exercise types. The exercise quality type was logged with the IMU data and is in the column `classe`. 
 
 ##Data Preperation
-The [data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) provided for this project needed to be slightly modified to focus on the key factors that had data. The data contains summary statistics for each new time window for statistics like max, min kurtosis, and skewness.  These values only occur at new window boundaries and since our test data does not contain those they will be removed from this data set by removing rows with `new_window == 'no'`.
+The [data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) provided for this project needed to be slightly modified to focus on the key factors. The data contained summary statistics for each new time window for statistics like max, min kurtosis, and skewness.  These values only occur at new window boundaries and since our test data does not contain values for those entries, they will be removed from this data set. This is accomplished by removing rows with `new_window == 'no'`.
 ```{r,results='hide',cache=TRUE}
 # if the training data does not exist download it
 if (!file.exists("pml-train.csv")) {
@@ -36,7 +36,8 @@ pml.test <- suppressWarnings(read.csv("pml-test.csv",stringsAsFactors=FALSE))
 pml.train <- pml.train[pml.train$new_window == 'no',]
 
 ```
-We will next remove all feature columns that have no intrinsic value as a result of having no variation or no values in those columns. To accomplish that we will use the `nearZeroVar` function to identify what columns should be removed.  In addition, the first eight columns in the data set contain information about the subject, time, window, etc that are not valuable for this learning activity. 
+We will next remove all feature columns that have no intrinsic value as a result of having no variation or no values in those columns. To accomplish that we will use the `nearZeroVar` function to identify what columns should be removed.  In addition, the first eight columns in the data set contain information about the subject, time, window, etc that are not valuable for this learning activity. The result of these actions reduce the columns from 160 to 51. 
+
 ```{r,cache=TRUE,comment=NA}
 # identify columns that have no variztion 
 nzv <- nearZeroVar(pml.train,saveMetrics=TRUE)
@@ -47,7 +48,7 @@ pml.train <- pml.train[c(-1:-8)]
 paste0('Training data size of: ',ncol(pml.train),' x ',nrow(pml.train))
 ```
 ##Building the Model
-Before building the model, we need to split our training data into a *training* and a *test* data set so that we can validate the performance of our model at the end of the training exercise.  We will use a 70%-30% split to accomplish this. The response variable also needs to be converted to a factor.
+Before building the model, we need to split our training data into a *training* and a *testing* data set so that we can validate the performance of our model at the end of the training exercise.  We will use a 70%-30% split to accomplish this. The response variable also needs to be converted to a factor so that the classification modeling with will correctly interpret the response variable.
 
 ```{r,warning=FALSE,results='hide',cache=TRUE,message=FALSE,warning=FALSE}
 # loading libraries
@@ -70,7 +71,7 @@ training[, 'classe'] <- as.factor(training[, 'classe'])
 testing[, 'classe'] <- as.factor(testing[, 'classe'])
 ```
 
-Next, we select only the features that have the biggest impact on the model. This is accomplished by determining the feature importance using the `random.forest.importance` function from the `FSelector` library and choosing the top features only. In this case we are only choosing the top 15 features which is approximately the right 4 bars on the subsequent histogram of `weights` for the attribute importance. This should capture only the most important features and reduce the complexity of the model.
+Next, we select only the features that have the biggest impact on the model. This is accomplished by determining the feature importance using the `random.forest.importance` function from the `FSelector` library and choosing the top features only. In this case we are only choosing the top 15 features which is approximately the right 4 bars on the subsequent histogram of `weights` for the attribute importance. This should capture only the most important features and reduce the complexity and variance of the model.
 
 ```{r,cache=TRUE,results='hold'}
 # calculate feature importance weights
@@ -78,7 +79,7 @@ weights <- random.forest.importance(classe~., training, importance.type = 1)
 hist(weights$attr_importance)
 ```
 
-Two of the main impact features can be viewed split by each `class` of exercise.  This reveals some differences but no large separations.  
+Two of the main impact features can be graphed, split by each `class` of exercise.  This reveals some differences but no large separations. Clearly, more complex relationships must exist. 
 
 ```{r,cache=TRUE,results='hold',comment=NA}
 # feature plot of two of the main factors
@@ -91,7 +92,7 @@ featurePlot(training[c("yaw_belt","magnet_dumbbell_z")],training$classe,
             auto.key = list(columns = 5))
 ```
 
-The final model is then as folllows:
+The final model that will be used for training is then as folllows:
 
 ```{r,cache=TRUE,results='hold',comment=NA}
 # select top 15 factors bassed on rf importance
@@ -150,7 +151,7 @@ tile
 ```
 
 ##Conclusion
-The overall accuracy of the prediction on this hold-out set was `r paste0(round(confMat$overall[1], 3)*100,"%")` and the  inter-rater agreement statistic Kappa is `r paste0(round(confMat$overall[2], 3)*100,"%")`.  This is very good accuracy given that I only used 15 features and did not take any of the time series data into account.  Further more, predictions for the 20 test cases that are needed for submittal  resulted in a 20 out of 20 correct score.
+The overall accuracy of the prediction on this hold-out set was `r paste0(round(confMat$overall[1], 3)*100,"%")` and the inter-rater agreement for categorical items statistic [Kappa] is `r paste0(round(confMat$overall[2], 3)*100,"%")`.  This is very good accuracy given that I only used 15 features and did not take any of the time series data into account.  Further more, predictions for the 20 test cases that are needed for submittal  resulted in a 20 out of 20 correct score.
 
 
 ***
