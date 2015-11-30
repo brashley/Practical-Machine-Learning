@@ -11,7 +11,7 @@ The Human Activity Recognition - [HAR](http://groupware.les.inf.puc-rio.br/har#i
 
 Inertial measurement units (IMU), which provide three-axes acceleration, gyroscope and magnetometer data, were mounted in the users’ glove, armband, lumbar belt and dumbbell.  All IMU data was recorded and loged for each participant and during all different exercize types. The excersize quality type was loged in the column `classe`.
 
-Please see [link](http://htmlpreview.github.io/?https://github.com/brashley/Practical-Machine-Learning/blob/master/Practical-Machine-Learning.html) for the HTML report.
+Please see [link](http://brashley.github.io/Practical-Machine-Learning/Practical-Machine-Learning) for the HTML report.
 
 ####References
 Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. **Qualitative Activity Recognition of Weight Lifting Exercises.** *Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13)* . Stuttgart, Germany: ACM SIGCHI, 2013.
